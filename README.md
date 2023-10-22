@@ -10,14 +10,11 @@ Note from document:
 6. A GUI has to be developed, and the system must be updated to show the types of features towards fake detection.
 
 Note:
-1. No deep learning - pattern matching should not be used e.g. tensor flow
-
-2. You can choose any currency
-
-3. The system should be like: 1,Perform technique 2, Perform technique 3 Perform technique 4, based on the picture, image recognition and feature extraction, compare with real currency and decide whether it is authentic or not. 
-
-4. Should come out with at least feature 1,2,3 - one student one feature
-
-5. Include failure analysis as well
-
-6. At the end, a GUI need to be developed
+1. GUI is a must
+2. No deep learning
+3. Different currency means same country different currency - $10, $50, $100 (not sure different country's currency is acceptable or not)
+4. The system should be like: 1,Perform technique 2, Perform technique 3 Perform technique 4, based on the picture, image recognition and feature extraction, compare with real currency and decide whether it is authentic or not. 
+5. final output must be integrated
+6. Should come out with at least feature 1,2,3 - one student one feature
+7. Include failure analysis as well
+8. can make the fake currency by ourselves

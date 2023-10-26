@@ -3,6 +3,7 @@ function imageViewerGUI
     fig = figure('Position', [100, 100, 600, 400], 'Name', 'Image Viewer', 'NumberTitle', 'off', 'Menubar', 'none');
 
     % Create a uicontrol (button) to open an image
+    % Hello
     uicontrol('Style', 'pushbutton', 'String', 'Open Image', 'Position', [20, 20, 100, 30], 'Callback', @openImage);
 
     % Create an axes to display the image

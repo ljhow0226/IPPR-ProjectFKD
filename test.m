@@ -5,6 +5,7 @@ function imageViewerGUI
     uicontrol('Style', 'pushbutton', 'String', 'Open Image', 'Position', [20, 20, 100, 30], 'Callback', @openImage);
 
     % Create an axes to display the image
+    %hello from winds
     axesHandle = axes('Parent', fig, 'Position', [0.15, 0.15, 0.7, 0.7]);
 
     % Callback function to open an image

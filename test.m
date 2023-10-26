@@ -1,5 +1,4 @@
 function imageViewerGUI
-    % Create a figure for the GUI
     fig = figure('Position', [100, 100, 600, 400], 'Name', 'Image Viewer', 'NumberTitle', 'off', 'Menubar', 'none');
 
     % Create a uicontrol (button) to open an image

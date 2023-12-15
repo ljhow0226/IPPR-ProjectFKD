@@ -1,12 +1,12 @@
-function currencyRecognitionGUI
-    % Create a figure for the GUI
-    fig = figure('Position', [100, 100, 600, 400], 'Name', 'Currency Recognition', 'NumberTitle', 'off', 'Menubar', 'none');
+function imageViewerGUI
+    fig = figure('Position', [100, 100, 600, 400], 'Name', 'Image Viewer', 'NumberTitle', 'off', 'Menubar', 'none');
 
     % Create a button to select an image
     uicontrol('Style', 'pushbutton', 'String', 'Select Image', 'Position', [20, 20, 100, 30], 'Callback', @openImage);
 
-    % Create an axis to display the result
-    axesHandle = axes('Parent', fig, 'Position', [0.2, 0.2, 0.6, 0.6]);
+    % Create an axes to display the image
+    %hello from winds
+    axesHandle = axes('Parent', fig, 'Position', [0.15, 0.15, 0.7, 0.7]);
 
     function openImage(~, ~)
         % Allow the user to select an image file

@@ -1,7 +1,7 @@
 function detectFakeNote
     % Load pre-cropped latent mark and fake note
     latentMark = im2double(imread('r_f100_latent.jpg'));
-    note = im2double(imread('r_f100.jpg'));
+    note = im2double(imread('100-front-fake.png'));
 
     % Set the correlation coefficient threshold
     correlationThreshold = 0.8;
@@ -38,7 +38,11 @@ function detectFakeNote
 
     subplot(1, 2, 2);
     imshow(croppedNote); % Show the cropped note
-    title('Cropped Note');
+    if ~isempty(x_detect) && correlation_coefficient >= correlationThreshold
+        title('Latent Mark Found');
+    else
+        title('Latent Mark Not Found');
+    end
     hold on;
 
     % Draw the rectangle on the cropped note

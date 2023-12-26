@@ -38,7 +38,11 @@ function detectFakeNote
 
     subplot(1, 2, 2);
     imshow(croppedNote); % Show the cropped note
-    title('Cropped Note');
+    if ~isempty(x_detect) && correlation_coefficient >= correlationThreshold
+        title('Latent Mark Found');
+    else
+        title('Latent Mark Not Found');
+    end
     hold on;
 
     % Draw the rectangle on the cropped note

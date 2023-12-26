@@ -1,5 +1,5 @@
 inputnote = imread('2000-front-fake.png');
-realnote = imread('2000-front-real.jpg');
+realnote = imread('r_f100.jpg');
 
 inputnotegray = rgb2gray(inputnote);
 realnotegray = rgb2gray(realnote);

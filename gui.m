@@ -93,7 +93,7 @@ switch X
     case 2
         % Read the images
         global INPUTNOTE
-        realnote = imread('100-front-real.jpg');
+        realnote = imread('r_f100.jpg');
 
         % Convert to grayscale
         inputnotegray = rgb2gray(INPUTNOTE);
@@ -123,7 +123,7 @@ switch X
     case 3
          % Read the images
         global INPUTNOTE
-        realnote = imread('200-front-real.jpg');
+        realnote = imread('r_f200.jpg');
 
         % Convert to grayscale
         inputnotegray = rgb2gray(INPUTNOTE);
@@ -153,7 +153,7 @@ switch X
     case 4
          % Read the images
         global INPUTNOTE
-        realnote = imread('500-front-real.jpg');
+        realnote = imread('r_f500.jpg');
 
         % Convert to grayscale
         inputnotegray = rgb2gray(INPUTNOTE);
@@ -184,7 +184,7 @@ switch X
     case 5
          % Read the images
         global INPUTNOTE
-        realnote = imread('2000-front-real.jpg');
+        realnote = imread('r_f2000.jpg');
 
         % Convert to grayscale
         inputnotegray = rgb2gray(INPUTNOTE);

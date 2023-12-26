@@ -1,7 +1,7 @@
 function detectFakeNote
     % Load pre-cropped latent mark and fake note
     latentMark = im2double(imread('r_f100_latent.jpg'));
-    note = im2double(imread('r_f100.jpg'));
+    note = im2double(imread('100-front-fake.png'));
 
     % Set the correlation coefficient threshold
     correlationThreshold = 0.8;

@@ -22,7 +22,7 @@ function varargout = gui(varargin)
 
 % Edit the above text to modify the response to help gui
 
-% Last Modified by GUIDE v2.5 26-Dec-2023 22:26:14
+% Last Modified by GUIDE v2.5 27-Dec-2023 18:50:34
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -42,6 +42,7 @@ else
     gui_mainfcn(gui_State, varargin{:});
 end
 % End initialization code - DO NOT EDIT
+end
 
 
 % --- Executes just before gui is made visible.
@@ -58,8 +59,12 @@ handles.output = hObject;
 % Update handles structure
 guidata(hObject, handles);
 
+global FAKECOUNTS;
+FAKECOUNTS = 0;
+
 % UIWAIT makes gui wait for user response (see UIRESUME)
 % uiwait(handles.figure1);
+end
 
 
 % --- Outputs from this function are returned to the command line.
@@ -71,14 +76,115 @@ function varargout = gui_OutputFcn(hObject, eventdata, handles)
 
 % Get default command line output from handles structure
 varargout{1} = handles.output;
-
+end
 
 % --- Executes on button press in pushbutton1.
 function pushbutton1_Callback(hObject, eventdata, handles)
 % hObject    handle to pushbutton1 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+global INPUTNOTE;
+global FAKECOUNTS;
+X = get(handles.popupmenu1,'value');
 
+switch X
+    case 2
+        processLatentMark('r_f100_latent.jpg', INPUTNOTE, handles);
+
+    case 3
+        processLatentMark('r_f200_latent.jpg', INPUTNOTE, handles);
+
+    case 4
+        processLatentMark('r_f500_latent.jpg', INPUTNOTE, handles);
+
+    case 5
+        processLatentMark('r_f2000_latent.jpg', INPUTNOTE, handles);
+        
+    otherwise
+        msgbox("Please select correct note.")
+end
+
+if isequal(X,1)
+    msgbox("Please select correct note.");
+end
+
+% Make the checkbox read-only and set it to checked
+set(handles.checkbox1, 'Enable', 'off', 'Value', 1);
+end
+
+function processLatentMark(latentMarkPath, INPUTNOTE, handles)
+    global FAKECOUNTS;
+    % Load pre-cropped latent mark
+    latentMark = im2double(imread(latentMarkPath));
+
+    % Set the correlation coefficient threshold
+    correlationThreshold = 0.8;
+
+    % Resize the detected note to a standard size
+    standardSize = [940, 2060];
+    resizedNote = imresize(INPUTNOTE, standardSize);
+
+    % Crop the region of interest (left bottom) from the detected note
+    cropPosition = [50, 700];
+    croppedNote = imcrop(resizedNote, [cropPosition, standardSize / 2]);
+
+    % Detect latent mark in the cropped note
+    [x_detect, y_detect, w_detect, h_detect, correlation_coefficient] = correlation(croppedNote, latentMark);
+
+    % Display the results
+    axes(handles.axes3);
+    imshow(croppedNote, []);
+    hold on;
+
+    % Determine whether the latent mark is found or not
+    if ~isempty(x_detect) && correlation_coefficient >= correlationThreshold
+        resultMessage = 'Correlation Coefficient >= 0.8 - Potentially Real';
+        rectangle('Position', [x_detect, y_detect, w_detect, h_detect], 'EdgeColor', 'r', 'LineWidth', 2);
+    else
+        resultMessage = 'Correlation Coefficient < 0.8 - Potentially Fake';
+        FAKECOUNTS = FAKECOUNTS + 1;
+    end
+
+    set(handles.edit1, 'String', resultMessage);
+
+    title(resultMessage);
+    hold off;
+
+end
+
+
+function [x, y, w, h, correlation_coefficient] = correlation(image, template)
+    imageGray = im2double(rgb2gray(image));
+    templateGray = im2double(rgb2gray(template));
+
+    [ih, iw] = size(imageGray);
+    [h, w] = size(templateGray);
+
+    % Use a 2-dimensional array to record the difference of each position
+    diffs = zeros(ih-h, iw-w);
+
+    for i = 1:ih-h
+        for j = 1:iw-w
+            neighborhood = imageGray(i:i+h-1, j:j+w-1);
+            difference = abs(neighborhood - templateGray);
+            diffs(i, j) = sum(difference(:)) / (w*h);
+        end
+    end
+
+    % Find the minimum difference value and its position
+    [~, i] = min(diffs(:));
+    [y, x] = ind2sub(size(diffs), i);
+
+    % Calculate the correlation coefficient
+    correlation_coefficient = 1 - diffs(i);
+
+    disp(['Correlation Coefficient: ' num2str(correlation_coefficient)]);
+
+
+    % Set width and height to the template size
+    w = size(template, 2);
+    h = size(template, 1);
+end
 
 
 % --- Executes on button press in pushbutton2.
@@ -91,143 +197,67 @@ X = get(handles.popupmenu1,'value');
 
 switch X
     case 2
-        % Read the images
-        global INPUTNOTE
-        realnote = imread('r_f100.jpg');
-
-        % Convert to grayscale
-        inputnotegray = rgb2gray(INPUTNOTE);
-        realnotegray = rgb2gray(realnote);
-
-        % Crop the images for the specific feature (Identification Mark in this case)
-        cropinputnote = imcrop(inputnotegray,[1800 430 300 200]); 
-        croprealnote = imcrop(realnotegray,[1800 430 300 200]); 
-
-        % Edge detection
-        inputnoteEdges = edge(cropinputnote, 'Roberts');
-        realnoteEdges = edge(croprealnote, 'Roberts');
-
-        % Cross-correlation for pattern matching
-        correlationOutput = normxcorr2(inputnoteEdges, realnoteEdges);
-        threshold = 0.9;
-        maxValue = max(correlationOutput(:));
-        isIdMarkPresent = maxValue > threshold;
-
-        % Print result
-        if isIdMarkPresent
-            resultMessage = 'The currency note is Real.';
-        else
-            resultMessage = 'The currency note is Fake.';
-        end
+        processIdentificationMark(handles, 'r_f100.jpg', [1800 430 300 200], INPUTNOTE);
 
     case 3
-         % Read the images
-        global INPUTNOTE
-        realnote = imread('r_f200.jpg');
+        processIdentificationMark(handles, 'r_f200.jpg', [1800 430 300 200], INPUTNOTE);
 
-        % Convert to grayscale
-        inputnotegray = rgb2gray(INPUTNOTE);
-        realnotegray = rgb2gray(realnote);
-
-        % Crop the images for the specific feature (Identification Mark in this case)
-        cropinputnote = imcrop(inputnotegray,[1800 430 300 200]); 
-        croprealnote = imcrop(realnotegray,[1800 430 300 200]); 
-
-        % Edge detection
-        inputnoteEdges = edge(cropinputnote, 'Roberts');
-        realnoteEdges = edge(croprealnote, 'Roberts');
-
-        % Cross-correlation for pattern matching
-        correlationOutput = normxcorr2(inputnoteEdges, realnoteEdges);
-        threshold = 0.9;
-        maxValue = max(correlationOutput(:));
-        isIdMarkPresent = maxValue > threshold;
-
-        % Print result
-        if isIdMarkPresent
-            resultMessage = 'The currency note is Real.';
-        else
-            resultMessage = 'The currency note is Fake.';
-        end
-        
     case 4
-         % Read the images
-        global INPUTNOTE
-        realnote = imread('r_f500.jpg');
+        processIdentificationMark(handles, 'r_f500.jpg', [1800 430 300 200], INPUTNOTE);
 
-        % Convert to grayscale
-        inputnotegray = rgb2gray(INPUTNOTE);
-        realnotegray = rgb2gray(realnote);
-
-        % Crop the images for the specific feature (Identification Mark in this case)
-        cropinputnote = imcrop(inputnotegray,[1800 430 300 200]); 
-        croprealnote = imcrop(realnotegray,[1800 430 300 200]); 
-
-        % Edge detection
-        inputnoteEdges = edge(cropinputnote, 'Roberts');
-        realnoteEdges = edge(croprealnote, 'Roberts');
-
-        % Cross-correlation for pattern matching
-        correlationOutput = normxcorr2(inputnoteEdges, realnoteEdges);
-        threshold = 0.9;
-        maxValue = max(correlationOutput(:));
-        isIdMarkPresent = maxValue > threshold;
-
-        % Print result
-        if isIdMarkPresent
-            resultMessage = 'The currency note is Real.';
-        else
-            resultMessage = 'The currency note is Fake.';
-        end
-
-        
     case 5
-         % Read the images
-        global INPUTNOTE
-        realnote = imread('r_f2000.jpg');
-
-        % Convert to grayscale
-        inputnotegray = rgb2gray(INPUTNOTE);
-        realnotegray = rgb2gray(realnote);
-
-        % Crop the images for the specific feature (Identification Mark in this case)
-        cropinputnote = imcrop(inputnotegray,[2100 400 300 200]); 
-        croprealnote = imcrop(realnotegray,[2100 400 300 200]); 
-
-        % Edge detection
-        inputnoteEdges = edge(cropinputnote, 'Roberts');
-        realnoteEdges = edge(croprealnote, 'Roberts');
-
-        % Cross-correlation for pattern matching
-        correlationOutput = normxcorr2(inputnoteEdges, realnoteEdges);
-        threshold = 0.9;
-        maxValue = max(correlationOutput(:));
-        isIdMarkPresent = maxValue > threshold;
-
-        % Print result
-        if isIdMarkPresent
-            resultMessage = 'The currency note is Real.';
-        else
-            resultMessage = 'The currency note is Fake.';
-        end
-
+        processIdentificationMark(handles, 'r_f2000.jpg', [1800 430 300 200], INPUTNOTE);
         
     otherwise
         msgbox("Please select correct note.")
 end
 
-axes(handles.axes3);
-
 if isequal(X,1)
-    imshow(INPUTNOTE);
-else
-    imshow(inputnoteEdges);
-        imshow(inputnoteEdges, []);
-    title(['Output Result: ' resultMessage]);
+    msgbox("Please select correct note.");
 end
-        
-  
 
+% Make the checkbox read-only and set it to checked
+set(handles.checkbox7, 'Enable', 'off', 'Value', 1);
+end
+
+function processIdentificationMark(handles, templateFile, cropRegion, INPUTNOTE)
+    global FAKECOUNTS;
+    % Read the images
+    realnote = imread(templateFile);
+
+    % Convert to grayscale
+    inputnotegray = rgb2gray(INPUTNOTE);
+    realnotegray = rgb2gray(realnote);
+
+    % Crop the images for the specific feature
+    cropinputnote = imcrop(inputnotegray, cropRegion);
+    croprealnote = imcrop(realnotegray, cropRegion);
+
+    % Edge detection
+    inputnoteEdges = edge(cropinputnote, 'Roberts');
+    realnoteEdges = edge(croprealnote, 'Roberts');
+
+    % Cross-correlation for pattern matching
+    correlationOutput = normxcorr2(inputnoteEdges, realnoteEdges);
+    threshold = 0.9;
+    maxValue = max(correlationOutput(:));
+    isIdMarkPresent = maxValue > threshold;
+
+    % Print result
+    if isIdMarkPresent
+        resultMessage = 'Max Correlation > 0.9 - Potentially Real';
+    else
+        resultMessage = 'Max Correlation <= 0.9 - Potentially Fake';
+        FAKECOUNTS = FAKECOUNTS + 1;
+    end
+
+    set(handles.edit4, 'String', resultMessage);
+
+    axes(handles.axes3);
+    imshow(inputnoteEdges, []);
+    title(resultMessage);
+
+end
 
 % --- Executes on button press in pushbutton3.
 function pushbutton3_Callback(hObject, eventdata, handles)
@@ -239,249 +269,94 @@ X = get(handles.popupmenu1,'value');
 
 switch X
     case 2
-        % Convert image to grayscale
-        inputImgGray = rgb2gray(INPUTNOTE);
-
-        % Apply morphological operations (erosion)
-        se = strel('line', 5, 90);  % Create a vertical line structuring element
-        erodedImg = imerode(inputImgGray, se);  % Erosion using the same structuring element
-
-        % Set the region of interest (replace with your provided values)
-        x = round(1176.679);
-        y = round(133.1638);
-        width = round(64.4687);
-        height = round(743.639);
-
-        % Crop the eroded image to the selected region
-        croppedImage = imcrop(erodedImg, [x, y, width, height]);
-
-        % Create a new image with the same size as the original eroded image
-        newImage = uint8(zeros(size(erodedImg)));
-
-        % Get the size of the cropped region
-        [heightCropped, widthCropped, ~] = size(croppedImage);
-
-        % Place the cropped region in the new image
-        newImage(y:y+heightCropped-1, x:x+widthCropped-1, :) = croppedImage;
-
-        % Save the cropped image
-        imwrite(newImage, 'eroded_input.jpg');
-
-        % Load the template image for the security thread
-        templateFileName = 'template_100.jpg';
-        template = imread(templateFileName);
-
-        % Convert the template image to grayscale if it is in RGB format
-        if size(template, 3) == 3
-            templateGray = rgb2gray(template);
-        else
-            templateGray = template; % Assume the image is already in grayscale
-        end
-
-        % Convert the eroded image to grayscale
-        erodedImgGray = erodedImg;
-
-        % Perform template matching using SSD on the eroded image
-        ssdMapResult = (double(templateGray) - double(erodedImgGray)).^2;
-        ssdResult = sum(ssdMapResult(:));
-
-        % Set a threshold for matching (you can adjust this threshold)
-        realCurrencySSDResult = 53745135434;
-        threshold = 1e8; % Adjust based on the observations
-
-        % Determine whether it's a match or not
-        if abs(ssdResult - realCurrencySSDResult) < threshold
-            resultMessage = 'It is real currency!';
-        else
-            resultMessage = 'It is fake currency!';
-        end
+        processSecurityThread(handles, 'template_100.jpg', [1176.679, 133.1638, 64.4687, 743.639], INPUTNOTE, 53745135434);
         
     case 3
-        % Convert image to grayscale
-        inputImgGray = rgb2gray(INPUTNOTE);
-
-        % Apply morphological operations (erosion)
-        se = strel('line', 5, 90);  % Create a vertical line structuring element
-        erodedImg = imerode(inputImgGray, se);  % Erosion using the same structuring element
-
-        % Set the region of interest (replace with your provided values)
-        x = round(1121.2091);
-        y = round(86.6823);
-        width = round(55.4732);
-        height = round(727.1491);
-
-        % Crop the eroded image to the selected region
-        croppedImage = imcrop(erodedImg, [x, y, width, height]);
-
-        % Create a new image with the same size as the original eroded image
-        newImage = uint8(zeros(size(erodedImg)));
-
-        % Get the size of the cropped region
-        [heightCropped, widthCropped, ~] = size(croppedImage);
-
-        % Place the cropped region in the new image
-        newImage(y:y+heightCropped-1, x:x+widthCropped-1, :) = croppedImage;
-
-        % Save the cropped image
-        imwrite(newImage, 'eroded_input.jpg');
-
-        % Load the template image for the security thread
-        templateFileName = 'template_200.jpg';
-        template = imread(templateFileName);
-
-        % Convert the template image to grayscale if it is in RGB format
-        if size(template, 3) == 3
-            templateGray = rgb2gray(template);
-        else
-            templateGray = template; % Assume the image is already in grayscale
-        end
-
-        % Convert the eroded image to grayscale
-        erodedImgGray = erodedImg;
-
-        % Perform template matching using SSD on the eroded image
-        ssdMapResult = (double(templateGray) - double(erodedImgGray)).^2;
-        ssdResult = sum(ssdMapResult(:));
-
-        % Set a threshold for matching (you can adjust this threshold)
-        realCurrencySSDResult = 73882821251;
-        threshold = 1e8; % Adjust based on the observations
-
-        % Determine whether it's a match or not
-        if abs(ssdResult - realCurrencySSDResult) < threshold
-            resultMessage = 'It is real currency!';
-        else
-            resultMessage = 'It is fake currency!';
-        end
+        processSecurityThread(handles, 'template_200.jpg', [1121.2091, 86.6823, 55.4732, 727.1491], INPUTNOTE, 73882821251);
         
     case 4
-        % Convert image to grayscale
-        inputImgGray = rgb2gray(INPUTNOTE);
+        processSecurityThread(handles, 'template_500.jpg', [1124.75, 136.25, 88.5, 708], INPUTNOTE, 63531498076);
 
-        % Apply morphological operations (erosion)
-        se = strel('line', 5, 90);  % Create a vertical line structuring element
-        erodedImg = imerode(inputImgGray, se);  % Erosion using the same structuring element
-
-        % Set the region of interest (replace with your provided values)
-        x = round(1124.75);
-        y = round(136.25);
-        width = round(88.5);
-        height = round(708);
-        
-        % Crop the eroded image to the selected region
-        croppedImage = imcrop(erodedImg, [x, y, width, height]);
-
-        % Create a new image with the same size as the original eroded image
-        newImage = uint8(zeros(size(erodedImg)));
-
-        % Get the size of the cropped region
-        [heightCropped, widthCropped, ~] = size(croppedImage);
-
-        % Place the cropped region in the new image
-        newImage(y:y+heightCropped-1, x:x+widthCropped-1, :) = croppedImage;
-
-        % Save the cropped image
-        imwrite(newImage, 'eroded_input.jpg');
-
-        % Load the template image for the security thread
-        templateFileName = 'template_500.jpg';
-        template = imread(templateFileName);
-
-        % Convert the template image to grayscale if it is in RGB format
-        if size(template, 3) == 3
-            templateGray = rgb2gray(template);
-        else
-            templateGray = template; % Assume the image is already in grayscale
-        end
-
-        % Convert the eroded image to grayscale
-        erodedImgGray = erodedImg;
-
-        % Perform template matching using SSD on the eroded image
-        ssdMapResult = (double(templateGray) - double(erodedImgGray)).^2;
-        ssdResult = sum(ssdMapResult(:));
-
-        % Set a threshold for matching (you can adjust this threshold)
-        realCurrencySSDResult = 63531498076;
-        threshold = 1e8; % Adjust based on the observations
-
-        % Determine whether it's a match or not
-        if abs(ssdResult - realCurrencySSDResult) < threshold
-            resultMessage = 'It is real currency!';
-        else
-            resultMessage = 'It is fake currency!';
-        end
-        
     case 5
-        % Convert image to grayscale
-        inputImgGray = rgb2gray(INPUTNOTE);
+        processSecurityThread(handles, 'template_2000.jpg', [1308.9737, 127.07127, 88.4813, 734.8448], INPUTNOTE, 77879205449);
 
-        % Apply morphological operations (erosion)
-        se = strel('line', 5, 90);  % Create a vertical line structuring element
-        erodedImg = imerode(inputImgGray, se);  % Erosion using the same structuring element
-
-        % Set the region of interest (replace with your provided values)
-        x = round(1308.9737);
-        y = round(127.07127);
-        width = round(88.4813);
-        height = round(734.8448);
-
-        % Crop the eroded image to the selected region
-        croppedImage = imcrop(erodedImg, [x, y, width, height]);
-
-        % Create a new image with the same size as the original eroded image
-        newImage = uint8(zeros(size(erodedImg)));
-
-        % Get the size of the cropped region
-        [heightCropped, widthCropped, ~] = size(croppedImage);
-
-        % Place the cropped region in the new image
-        newImage(y:y+heightCropped-1, x:x+widthCropped-1, :) = croppedImage;
-
-        % Save the cropped image
-        imwrite(newImage, 'eroded_input.jpg');
-
-        % Load the template image for the security thread
-        templateFileName = 'template_2000.jpg';
-        template = imread(templateFileName);
-
-        % Convert the template image to grayscale if it is in RGB format
-        if size(template, 3) == 3
-            templateGray = rgb2gray(template);
-        else
-            templateGray = template; % Assume the image is already in grayscale
-        end
-
-        % Convert the eroded image to grayscale
-        erodedImgGray = erodedImg;
-
-        % Perform template matching using SSD on the eroded image
-        ssdMapResult = (double(templateGray) - double(erodedImgGray)).^2;
-        ssdResult = sum(ssdMapResult(:));
-
-        % Set a threshold for matching (you can adjust this threshold)
-        realCurrencySSDResult = 77879205449;
-        threshold = 1e8; % Adjust based on the observations
-
-        % Determine whether it's a match or not
-        if abs(ssdResult - realCurrencySSDResult) < threshold
-            resultMessage = 'It is real currency!';
-        else
-            resultMessage = 'It is fake currency!';
-        end
- 
     otherwise
         msgbox("Please select correct note.")
 end
 
-axes(handles.axes3);
-
 if isequal(X,1)
-    imshow(INPUTNOTE);
-else
+    msgbox("Please select correct note.");
+end
+
+% Make the checkbox read-only and set it to checked
+set(handles.checkbox8, 'Enable', 'off', 'Value', 1);
+end
+
+function processSecurityThread(handles, templateFileName, cropRegion, INPUTNOTE, realCurrencySSDResult)
+    global FAKECOUNTS;
+    % Convert image to grayscale
+    inputImgGray = rgb2gray(INPUTNOTE);
+
+    % Apply morphological operations (erosion)
+    se = strel('line', 5, 90);
+    erodedImg = imerode(inputImgGray, se);
+
+    % Crop the eroded image to the selected region
+    x = round(cropRegion(1));
+    y = round(cropRegion(2));
+    width = round(cropRegion(3));
+    height = round(cropRegion(4));
+
+    croppedImage = imcrop(erodedImg, [x, y, width, height]);
+    newImage = uint8(zeros(size(erodedImg)));
+    [heightCropped, widthCropped, ~] = size(croppedImage);
+    newImage(y:y+heightCropped-1, x:x+widthCropped-1, :) = croppedImage;
+
+    % Save the cropped image
+    imwrite(newImage, 'eroded_input.jpg');
+
+    % Load the template image for the security thread
+    template = imread(templateFileName);
+
+    % Convert the template image to grayscale if it is in RGB format
+    if size(template, 3) == 3
+        templateGray = rgb2gray(template);
+    else
+        templateGray = template;
+    end
+
+    % Convert the eroded image to grayscale
+    erodedImgGray = erodedImg;
+
+    % Perform template matching using SSD on the eroded image
+    ssdMapResult = (double(templateGray) - double(erodedImgGray)).^2;
+    ssdResult = sum(ssdMapResult(:));
+
+    % Set a threshold for matching (you can adjust this threshold)
+    threshold = 1e8;
+
+    % Determine whether it's a match or not
+    if abs(ssdResult - realCurrencySSDResult) < threshold
+        resultMessage = (['SSD Map (Result: ' num2str(ssdResult) ') - Potentially Real']);
+    else
+        resultMessage = (['SSD Map (Result: ' num2str(ssdResult) ') - Potentially Fake']);
+        FAKECOUNTS = FAKECOUNTS + 1;
+    end
+
+    set(handles.edit5, 'String', resultMessage);
+
+    axes(handles.axes3);
     imshow(ssdMapResult, []);
     title(['SSD Map (Result: ' num2str(ssdResult) ') - ' resultMessage]);
+
+    if FAKECOUNTS >= 3
+        set(handles.text9, 'Visible', 'on', 'String', 'This is a Fake Note', 'ForegroundColor', 'red');
+    else
+        set(handles.text9, 'Visible', 'on', 'String', 'This is a Real Note', 'ForegroundColor', 'green');
+    end
+
 end
+
 
 % --- Executes on selection change in popupmenu1.
 function popupmenu1_Callback(hObject, eventdata, handles)
@@ -491,7 +366,7 @@ function popupmenu1_Callback(hObject, eventdata, handles)
 
 % Hints: contents = cellstr(get(hObject,'String')) returns popupmenu1 contents as cell array
 %        contents{get(hObject,'Value')} returns selected item from popupmenu1
-
+end
 
 % --- Executes during object creation, after setting all properties.
 function popupmenu1_CreateFcn(hObject, eventdata, handles)
@@ -504,7 +379,7 @@ function popupmenu1_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
-
+end
 
 % --- Executes on button press in pushbutton4.
 function pushbutton4_Callback(hObject, eventdata, handles)
@@ -517,3 +392,154 @@ note_input = fullfile(path, file);
 INPUTNOTE = imread(note_input);
 axes(handles.axes1);
 imshow(INPUTNOTE);
+end
+
+% --- Executes during object creation, after setting all properties.
+function axes3_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to axes3 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: place code in OpeningFcn to populate axes3
+end
+
+% --- Executes on button press in checkbox1.
+function checkbox1_Callback(hObject, eventdata, handles)
+% hObject    handle to checkbox1 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of checkbox1
+end
+
+function edit1_Callback(hObject, eventdata, handles)
+% hObject    handle to edit1 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of edit1 as text
+%        str2double(get(hObject,'String')) returns contents of edit1 as a double
+end
+
+% --- Executes during object creation, after setting all properties.
+function edit1_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to edit1 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+end
+
+
+% --- Executes on button press in checkbox7.
+function checkbox7_Callback(hObject, eventdata, handles)
+% hObject    handle to checkbox7 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of checkbox7
+end
+
+
+function edit4_Callback(hObject, eventdata, handles)
+% hObject    handle to edit4 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of edit4 as text
+%        str2double(get(hObject,'String')) returns contents of edit4 as a double
+end
+
+% --- Executes during object creation, after setting all properties.
+function edit4_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to edit4 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+end
+
+
+% --- Executes on button press in checkbox8.
+function checkbox8_Callback(hObject, eventdata, handles)
+% hObject    handle to checkbox8 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of checkbox8
+end
+
+
+function edit5_Callback(hObject, eventdata, handles)
+% hObject    handle to edit5 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of edit5 as text
+%        str2double(get(hObject,'String')) returns contents of edit5 as a double
+end
+
+% --- Executes during object creation, after setting all properties.
+function edit5_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to edit5 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+end
+
+
+% --- Executes during object creation, after setting all properties.
+function text9_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to text9 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+end
+
+
+% --- Executes on button press in pushbutton5.
+function pushbutton5_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton5 (see GCBO)
+    % eventdata  reserved - to be defined in a future version of MATLAB
+    % handles    structure with handles and user data (see GUIDATA)
+    
+    global FAKECOUNTS;
+    global INPUTNOTE;
+
+    % Reset global variables
+    FAKECOUNTS = 0;
+    INPUTNOTE = [];
+
+    % Reset UI elements
+    set(handles.edit1, 'String', '');
+    set(handles.edit4, 'String', '');
+    set(handles.edit5, 'String', '');
+    set(handles.text9, 'Visible', 'off', 'String', '');
+
+    % Reset checkboxes
+    set(handles.checkbox1, 'Enable', 'on', 'Value', 0);
+    set(handles.checkbox7, 'Enable', 'on', 'Value', 0);
+    set(handles.checkbox8, 'Enable', 'on', 'Value', 0);
+
+    % Clear axes
+    cla(handles.axes3);
+    cla(handles.axes1);
+
+    % Clear title
+    title('');
+
+    % Display a message
+    msgbox('Variables and GUI elements have been reset.');
+end
